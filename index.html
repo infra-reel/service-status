@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Status</title>
+<style>
+:root{--bg:#fafafa;--fg:#1a1a1a;--card:#fff;--mute:#6b7280;--line:#e5e7eb;--ok:#16a34a;--ng:#dc2626;--na:#d1d5db}
+@media (prefers-color-scheme:dark){:root{--bg:#111;--fg:#eee;--card:#1b1b1b;--mute:#9ca3af;--line:#2d2d2d;--ok:#22c55e;--ng:#ef4444;--na:#3f3f46}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 system-ui,"Hiragino Sans","Noto Sans JP",sans-serif}
+main{max-width:720px;margin:0 auto;padding:32px 16px}
+h1{font-size:1.4rem;margin:0 0 4px}
+.sub{color:var(--mute);font-size:.85rem;margin-bottom:20px}
+.banner{padding:14px 16px;border-radius:10px;color:#fff;font-weight:600;margin-bottom:20px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:12px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.name{font-weight:600}.name a{color:inherit;text-decoration:none}
+.badge{font-size:.85rem;font-weight:600}
+.bars{display:flex;gap:2px;margin:12px 0 6px;height:28px}
+.bars i{flex:1;border-radius:2px;background:var(--na)}
+.meta{display:flex;justify-content:space-between;color:var(--mute);font-size:.8rem}
+</style>
+</head>
+<body>
+<main>
+  <h1>Service Status</h1>
+  <div class="sub" id="updated">読み込み中…</div>
+  <div id="banner"></div>
+  <div id="list"></div>
+</main>
+<script>
+const BARS = 60;
+const $ = (s) => document.querySelector(s);
+fetch('status.json?' + Date.now()).then(r => r.json()).then(render).catch(() => {
+  $('#updated').textContent = 'ステータスの取得に失敗しました';
+});
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+}
+
+function render(d) {
+  const sites = Object.entries(d.sites);
+  $('#updated').textContent = d.updated ? '最終チェック: ' + new Date(d.updated).toLocaleString('ja-JP') : 'まだチェックされていません';
+  let down = 0;
+  const list = $('#list');
+  list.textContent = '';
+
+  for (const [url, s] of sites) {
+    const c = s.checks, last = c[c.length - 1];
+    const isUp = last && last.ok;
+    if (last && !last.ok) down++;
+    const up = c.length ? (c.filter(x => x.ok).length / c.length * 100) : null;
+
+    const card = el('div', 'card');
+    const row = el('div', 'row');
+    const name = el('div', 'name');
+    const a = el('a', null, s.name); a.href = url; a.target = '_blank'; a.rel = 'noopener';
+    name.append(a);
+    const badge = el('div', 'badge', !last ? '未確認' : isUp ? '稼働中' : '停止中');
+    badge.style.color = !last ? 'var(--mute)' : isUp ? 'var(--ok)' : 'var(--ng)';
+    row.append(name, badge);
+
+    const bars = el('div', 'bars');
+    const recent = c.slice(-BARS);
+    for (let i = 0; i < BARS - recent.length; i++) bars.append(el('i'));
+    for (const x of recent) {
+      const b = el('i');
+      b.style.background = x.ok ? 'var(--ok)' : 'var(--ng)';
+      b.title = new Date(x.t).toLocaleString('ja-JP') + ' / ' + (x.code || 'ERR') + ' / ' + x.ms + 'ms';
+      bars.append(b);
+    }
+
+    const meta = el('div', 'meta');
+    meta.append(
+      el('span', null, up == null ? '' : '稼働率 ' + up.toFixed(2) + '%（直近 ' + c.length + ' 回）'),
+      el('span', null, last ? '応答 ' + last.ms + 'ms' : '')
+    );
+    card.append(row, bars, meta);
+    list.append(card);
+  }
+
+  const banner = el('div', 'banner', !sites.length ? 'データなし' : down === 0 ? 'すべてのシステムが正常に稼働しています' : down + ' 件のサイトで問題が発生しています');
+  banner.style.background = !sites.length ? 'var(--mute)' : down === 0 ? 'var(--ok)' : 'var(--ng)';
+  $('#banner').textContent = '';
+  $('#banner').append(banner);
+}
+</script>
+</body>
+</html>
