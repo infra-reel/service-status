@@ -1,17 +1,21 @@
 name: Check sites
 on:
   schedule:
-    - cron: '3-58/5 * * * *'
+    - cron: '7,37 * * * *'   # 連鎖が途切れたときの復帰用
   workflow_dispatch:
 permissions:
   contents: write
+  actions: write
 concurrency:
   group: check
   cancel-in-progress: false
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
+      - name: Record start time
+        run: echo "START=$(date +%s)" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
@@ -25,3 +29,12 @@ jobs:
           git commit -m "update status" || exit 0
           git pull --rebase
           git push
+      # 開始から5分後に、自分自身をもう一度起動する（失敗時も実行）
+      - name: Trigger next run
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          WAIT=$(( 300 - ( $(date +%s) - START ) ))
+          [ "$WAIT" -gt 0 ] && sleep "$WAIT"
+          gh workflow run check.yml --ref "${{ github.ref_name }}"
