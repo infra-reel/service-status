@@ -2,5 +2,5 @@
   { "name": "rielu", "url": "https://rielu.f5.si/" },
   { "name": "reeldev", "url": "https://reeldev.jp/" },
   { "name": "bluestarth", "url": "https://bluestarth.reeldev.jp/" },
-    { "name": "NextCloud", "url": "https://cloud.reeldev.jp/" }
+  { "name": "NextCloud", "url": "https://cloud.reeldev.jp/" }
 ]
